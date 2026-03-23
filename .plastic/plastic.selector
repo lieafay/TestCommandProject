@@ -1,0 +1,4 @@
+repository "TestCommandProject 2026-01-25_12-21-05/TestCommandProject@9072341148017@cloud"
+  path "/"
+    br "/main"
+    co "/main"

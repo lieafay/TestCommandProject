@@ -1,0 +1,212 @@
+# This .gitignore file should be placed at the root of your Unity project directory
+#
+# Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
+#
+# Unity generated files
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+UserSettings/
+
+# Visual Studio / Rider / MonoDevelop generated files
+ExportedObj/
+*.svd
+*.userprefs
+*.csproj
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.pidb.meta
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.VC.VC.opendb
+*.VC.db
+*.VC.VC.db
+*.VC.sln
+*.VC.VC.sln
+*.sln.DotSettings.user
+*.sln.DotSettings
+
+# Unity3D generated meta files
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity3D Generated File On Crash Reports
+sysinfo.txt
+
+# Builds
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Crashlytics generated file
+crashlytics-build.properties
+
+# Packed Assets
+*.unity3d.resS
+*.unity3d.resS.meta
+
+# Addressables
+Assets/AddressableAssetsData/*/*.bin*
+
+# Temporary auto-generated Android Assets
+Assets/StreamingAssets/aa.meta
+Assets/StreamingAssets/aa/*
+
+# WebGL
+Build/
+Builds/
+WebGLTemplates/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Package Manager
+Packages/packages-lock.json
+
+# Burst
+BurstCache/
+
+# ShaderCache
+ShaderCache/
+
+# StateCache
+StateCache/
+
+# TempArtifacts
+TempArtifacts/
+
+# UIElements
+UIElements/
+
+# Search
+Search/
+
+# PackageCache
+PackageCache/
+
+# Artifacts
+Artifacts/
+
+# Bee
+Bee/
+
+# ScriptAssemblies
+ScriptAssemblies/
+
+# APIUpdater
+APIUpdater/
+
+# SourceAssetDB
+SourceAssetDB*
+
+# AnnotationManager
+AnnotationManager
+
+# ScriptMapper
+ScriptMapper
+
+# MonoManager
+MonoManager.asset
+
+# SceneVisibilityState
+SceneVisibilityState.asset
+
+# SpriteAtlasDatabase
+SpriteAtlasDatabase.asset
+
+# Style.catalog
+Style.catalog
+
+# expandedItems
+expandedItems
+
+# InspectorExpandedItems
+InspectorExpandedItems.asset
+
+# LastSceneManagerSetup
+LastSceneManagerSetup.txt
+
+# SceneTemplateSettings
+SceneTemplateSettings.json
+
+# EditorSnapSettings
+EditorSnapSettings.asset
+
+# EditorUserBuildSettings
+EditorUserBuildSettings.asset
+
+# EditorInstance
+EditorInstance.json
+
+# EditorOnlyScriptingSettings
+EditorOnlyScriptingSettings.json
+
+# EditorOnlyVirtualTextureState
+EditorOnlyVirtualTextureState.json
+
+# BuildPlayer.prefs
+BuildPlayer.prefs
+
+# BuildSettings
+BuildSettings.asset
+
+# ilpp.pid
+ilpp.pid
+
+# UnityLockfile
+UnityLockfile
+
+# workerlic
+workerlic
+
+# FSTimeGet
+FSTimeGet-*
+
+# __Backupscenes
+__Backupscenes/
+
+# ProcessJobs
+ProcessJobs/
+
+# Burst
+Burst/
+
+# Search.index
+Search.index
+
+# Search.settings
+Search.settings
+
+# Layouts
+Layouts/
+
+# EditorUserSettings
+EditorUserSettings.asset

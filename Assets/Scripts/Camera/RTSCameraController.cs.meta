@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: c5496f17be9684448aafeb2718cdcc20
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - moveAction: {fileID: 6337181812802708341, guid: dfe42b3ad9344b642bce86fc2a5e1650,
+      type: 3}
+  - pointerDeltaAction: {fileID: -5245027993799028248, guid: dfe42b3ad9344b642bce86fc2a5e1650,
+      type: 3}
+  - rotateMouseButtonAction: {fileID: -7662571152456637573, guid: dfe42b3ad9344b642bce86fc2a5e1650,
+      type: 3}
+  - zoomAction: {fileID: -3135980974617116881, guid: dfe42b3ad9344b642bce86fc2a5e1650,
+      type: 3}
+  - rotateLeftAction: {instanceID: 0}
+  - rotateRightAction: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
