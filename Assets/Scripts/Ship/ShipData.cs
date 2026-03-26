@@ -41,4 +41,6 @@ public class ShipData
     public float cellSize = 1f;
     public float foundationThickness = 0.2f;
     public List<BlockData> blocks = new List<BlockData>();
+    public int maxExtensions = 10; // от - центра до края, по каждой оси, 
+    //центр не входит в это число, центральный блок с ядром должен быть создан в любом случае
 }

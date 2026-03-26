@@ -14,6 +14,7 @@ public class ShipController : RTSActorParent
     private float cellSize;
     private bool hasImpostor = false;
     private RectTransform impostorRect; // RectTransform изображения импостера
+    private int maxExtensions;
 
     void Awake()
     {
@@ -50,8 +51,18 @@ public class ShipController : RTSActorParent
 
         existingCells = new List<Vector2Int>(data.existingCells);
         cellSize = data.cellSize;
-        blocks.Clear();
+        maxExtensions = data.maxExtensions;
 
+        // Если maxExtensions не задан (старое сохранение), вычисляем его из existingCells
+        if (maxExtensions == 0 && data.existingCells.Count > 0)
+        {
+            int max = 0;
+            foreach (var cell in data.existingCells)
+                max = Mathf.Max(max, Mathf.Abs(cell.x), Mathf.Abs(cell.y));
+            maxExtensions = max;
+        }
+
+        blocks.Clear();
         foreach (var block in data.blocks)
         {
             Vector2Int pos = new Vector2Int(block.x, block.z);
@@ -190,6 +201,7 @@ public class ShipController : RTSActorParent
         data.cellSize = foundation.cellSize;
         data.foundationThickness = foundation.thickness;
         data.existingCells = new List<Vector2Int>(existingCells);
+        data.maxExtensions = maxExtensions;
 
         foreach (var kvp in blocks)
         {
