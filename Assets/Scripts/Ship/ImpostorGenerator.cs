@@ -105,4 +105,84 @@ public static class ImpostorGenerator
             bounds.Encapsulate(renderers[i].bounds);
         return bounds;
     }
+
+    /// <summary>
+    /// Добавляет зелёную рамку по краям текстуры.
+    /// </summary>
+    /// <param name="texture">Текстура, к которой добавляется обводка.</param>
+    /// <param name="borderWidth">Толщина обводки в пикселях.</param>
+    public static void AddSelectionBorder(Texture2D texture, int borderWidth = 2)
+    {
+        if (texture == null) return;
+
+        int width = texture.width;
+        int height = texture.height;
+        Color[] pixels = texture.GetPixels();
+        Color borderColor = Color.green;
+
+        int minX = width;
+        int maxX = 0;
+        int minY = height;
+        int maxY = 0;
+        bool hasOpaque = false;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (pixels[y * width + x].a > 0.1f)
+                {
+                    hasOpaque = true;
+                    minX = Mathf.Min(minX, x);
+                    maxX = Mathf.Max(maxX, x);
+                    minY = Mathf.Min(minY, y);
+                    maxY = Mathf.Max(maxY, y);
+                }
+            }
+        }
+
+        if (!hasOpaque || minX >= maxX || minY >= maxY)
+        {
+            return;
+        }
+
+        minX = Mathf.Max(0, minX - borderWidth);
+        minY = Mathf.Max(0, minY - borderWidth);
+        maxX = Mathf.Min(width - 1, maxX + borderWidth);
+        maxY = Mathf.Min(height - 1, maxY + borderWidth);
+
+        for (int y = minY; y <= maxY; y++)
+        {
+            for (int x = minX; x <= maxX; x++)
+            {
+                bool isBorder = x < minX + borderWidth || x > maxX - borderWidth || y < minY + borderWidth || y > maxY - borderWidth;
+                if (!isBorder)
+                    continue;
+
+                int index = y * width + x;
+                Color current = pixels[index];
+                if (current.a < 0.1f)
+                {
+                    pixels[index] = borderColor;
+                }
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+    }
+
+    /// <summary>
+    /// Генерирует текстуру импостера с зелёной обводкой для выделения.
+    /// </summary>
+    /// <param name="ship">Объект корабля.</param>
+    /// <param name="resolution">Разрешение текстуры.</param>
+    /// <param name="pitchAngle">Угол наклона.</param>
+    /// <returns>Texture2D с обводкой.</returns>
+    public static Texture2D GenerateImpostorTextureWithBorder(GameObject ship, int resolution = 256, float pitchAngle = 90f)
+    {
+        Texture2D tex = GenerateImpostorTexture(ship, resolution, pitchAngle);
+        AddSelectionBorder(tex);
+        return tex;
+    }
 }

@@ -9,13 +9,18 @@ public class ShipController : RTSActorParent
     public GameObject impostorRoot; // дочерний объект с Canvas
     public ProceduralFoundation foundation; // ссылка на компонент подложки
 
+    // Public properties for SelectionIndicator
+    public List<Vector2Int> existingCells { get; private set; } = new List<Vector2Int>();
+    public Image impostorImage { get; private set; }
+    public Sprite normalImpostorSprite { get; private set; }
+    public Sprite selectionImpostorSprite { get; private set; }
+    public float cellSize { get; private set; }
+
     private Dictionary<Vector2Int, BlockType> blocks = new Dictionary<Vector2Int, BlockType>();
-    private List<Vector2Int> existingCells = new List<Vector2Int>();
-    private float cellSize;
-    private bool hasImpostor = false;
     private RectTransform impostorRect; // RectTransform изображения импостера
     private int maxExtensions;
-
+    private float _cellSize;
+    private bool hasImpostor = false;
     void Awake()
     {
         if (modelRoot == null)
@@ -32,6 +37,12 @@ public class ShipController : RTSActorParent
             impostorRoot.transform.SetParent(transform);
             impostorRoot.transform.localPosition = Vector3.zero;
             impostorRoot.transform.localRotation = Quaternion.identity;
+        }
+
+        // Ensure SelectionIndicator is attached
+        if (GetComponent<SelectionIndicator>() == null)
+        {
+            gameObject.AddComponent<SelectionIndicator>();
         }
     }
 
@@ -51,6 +62,7 @@ public class ShipController : RTSActorParent
 
         existingCells = new List<Vector2Int>(data.existingCells);
         cellSize = data.cellSize;
+        _cellSize = data.cellSize;
         maxExtensions = data.maxExtensions;
 
         // Если maxExtensions не задан (старое сохранение), вычисляем его из existingCells
@@ -62,6 +74,8 @@ public class ShipController : RTSActorParent
             maxExtensions = max;
         }
 
+        // Add BoxCollider for selection
+        AddSelectionCollider();
         blocks.Clear();
         foreach (var block in data.blocks)
         {
@@ -70,6 +84,52 @@ public class ShipController : RTSActorParent
         }
 
         GenerateVisualModules();
+    }
+
+    private void AddSelectionCollider()
+    {
+        // Remove old MeshCollider if exists on this object and foundation
+        MeshCollider oldCollider = GetComponent<MeshCollider>();
+        if (oldCollider != null)
+        {
+            DestroyImmediate(oldCollider);
+        }
+
+        if (foundation != null)
+        {
+            MeshCollider foundationCollider = foundation.GetComponent<MeshCollider>();
+            if (foundationCollider != null)
+            {
+                DestroyImmediate(foundationCollider);
+            }
+        }
+
+        // Calculate bounds
+        if (existingCells.Count == 0) return;
+
+        int minX = int.MaxValue, maxX = int.MinValue, minZ = int.MaxValue, maxZ = int.MinValue;
+        foreach (var cell in existingCells)
+        {
+            minX = Mathf.Min(minX, cell.x);
+            maxX = Mathf.Max(maxX, cell.x);
+            minZ = Mathf.Min(minZ, cell.y);
+            maxZ = Mathf.Max(maxZ, cell.y);
+        }
+
+        float width = (maxX - minX + 1) * _cellSize;
+        float depth = (maxZ - minZ + 1) * _cellSize;
+        float height = foundation.thickness + _cellSize; // From bottom to top of modules
+
+        Vector3 center = new Vector3(
+            (minX + maxX) * _cellSize / 2f,
+            0,
+            (minZ + maxZ) * _cellSize / 2f
+        );
+
+        BoxCollider collider = gameObject.AddComponent<BoxCollider>();
+        collider.isTrigger = true;
+        collider.center = center;
+        collider.size = new Vector3(width, height, depth);
     }
 
     private void GenerateVisualModules()
@@ -95,11 +155,11 @@ public class ShipController : RTSActorParent
         module.AddComponent<Module>();
         module.transform.parent = modelRoot.transform;
 
-        float posX = x * cellSize;
-        float posZ = z * cellSize;
-        float posY = foundation.thickness / 2f + cellSize / 2f;
+        float posX = x * _cellSize;
+        float posZ = z * _cellSize;
+        float posY = foundation.thickness / 2f + _cellSize / 2f;
         module.transform.localPosition = new Vector3(posX, posY, posZ);
-        module.transform.localScale = Vector3.one * cellSize;
+        module.transform.localScale = Vector3.one * _cellSize;
 
         var renderer = module.GetComponent<Renderer>();
         switch (type)
@@ -147,20 +207,52 @@ public class ShipController : RTSActorParent
         Image image = imageGO.AddComponent<Image>();
         image.material = new Material(Shader.Find("Sprites/Default"));
         image.color = Color.white;
+        impostorImage = image;
 
-        Texture2D tex = ImpostorGenerator.GenerateImpostorTexture(gameObject, LODSettings.ImpostorResolution, LODSettings.ImpostorPitchAngle);
-        if (tex == null)
+        // Generate normal sprite
+        Texture2D normalTex = ImpostorGenerator.GenerateImpostorTexture(gameObject, LODSettings.ImpostorResolution, LODSettings.ImpostorPitchAngle);
+        if (normalTex == null)
         {
             Debug.LogError("Impostor texture generation failed!");
             return;
         }
-        Sprite sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
-        image.sprite = sprite;
+        normalImpostorSprite = Sprite.Create(normalTex, new Rect(0, 0, normalTex.width, normalTex.height), new Vector2(0.5f, 0.5f));
+
+        // Generate selection sprite with border
+        Texture2D selectionTex = ImpostorGenerator.GenerateImpostorTextureWithBorder(gameObject, LODSettings.ImpostorResolution, LODSettings.ImpostorPitchAngle);
+        selectionImpostorSprite = Sprite.Create(selectionTex, new Rect(0, 0, selectionTex.width, selectionTex.height), new Vector2(0.5f, 0.5f));
+
+        image.sprite = normalImpostorSprite;
+
+        // Add BoxCollider to cover the sprite
+        BoxCollider spriteCollider = imageGO.AddComponent<BoxCollider>();
+        UpdateSpriteCollider();
 
         canvasGO.AddComponent<Billboard>();
 
         hasImpostor = true;
         Debug.Log($"Impostor generated for {gameObject.name}");
+    }
+
+    private void UpdateSpriteCollider()
+    {
+        if (impostorImage == null || impostorRect == null) return;
+
+        Vector3[] corners = new Vector3[4];
+        impostorRect.GetWorldCorners(corners);
+
+        Bounds bounds = new Bounds(corners[0], Vector3.zero);
+        for (int i = 1; i < 4; i++)
+        {
+            bounds.Encapsulate(corners[i]);
+        }
+
+        BoxCollider collider = impostorImage.GetComponent<BoxCollider>();
+        if (collider != null)
+        {
+            collider.center = bounds.center - transform.position;
+            collider.size = bounds.size;
+        }
     }
 
     private void UpdateImpostorOrientation()
@@ -220,5 +312,25 @@ public class ShipController : RTSActorParent
     {
         if (hasImpostor)
             GenerateImpostor();
+    }
+
+    public override void Select()
+    {
+        base.Select();
+        SelectionIndicator indicator = GetComponent<SelectionIndicator>();
+        if (indicator != null)
+        {
+            indicator.Show(true);
+        }
+    }
+
+    public override void Deselect()
+    {
+        base.Deselect();
+        SelectionIndicator indicator = GetComponent<SelectionIndicator>();
+        if (indicator != null)
+        {
+            indicator.Show(false);
+        }
     }
 }
