@@ -16,8 +16,8 @@ public class Billboard : MonoBehaviour
     void LateUpdate()
     {
         if (mainCamera == null) return;
-        // Направление "вперёд" объекта = направление от объекта к камере
+        Debug.Log($"[Billboard] {gameObject.name} world pos: {transform.position}, root: {transform.root.position}");
         transform.LookAt(transform.position + mainCamera.transform.rotation * Vector3.forward,
-                         mainCamera.transform.rotation * Vector3.up);
+                        mainCamera.transform.rotation * Vector3.up);
     }
 }

@@ -1,82 +1,86 @@
 {
-  "name": "SelectionInput",
-  "maps": [
-    {
-      "name": "Selection",
-      "id": "f0a1c8c1-7b2f-4b03-9a52-2c14c5539b7c",
-      "actions": [
+    "version": 1,
+    "name": "SelectionInput",
+    "maps": [
         {
-          "name": "Select",
-          "type": "Button",
-          "id": "8f889c59-9ebb-49f2-8b45-bc2d4f22ed71",
-          "expectedControlType": "Button",
-          "processors": "",
-          "interactions": ""
-        },
-        {
-          "name": "Modifier",
-          "type": "Button",
-          "id": "b0612f5b-3efe-4898-9f0f-59d8c2c566d5",
-          "expectedControlType": "Button",
-          "processors": "",
-          "interactions": ""
-        },
-        {
-          "name": "DeselectAll",
-          "type": "Button",
-          "id": "1dae47a7-0a59-453b-a5f0-ea4ddde5b8a4",
-          "expectedControlType": "Button",
-          "processors": "",
-          "interactions": ""
+            "name": "Selection",
+            "id": "f0a1c8c1-7b2f-4b03-9a52-2c14c5539b7c",
+            "actions": [
+                {
+                    "name": "Select",
+                    "type": "Button",
+                    "id": "8f889c59-9ebb-49f2-8b45-bc2d4f22ed71",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Modifier",
+                    "type": "Button",
+                    "id": "b0612f5b-3efe-4898-9f0f-59d8c2c566d5",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "DeselectAll",
+                    "type": "Button",
+                    "id": "1dae47a7-0a59-453b-a5f0-ea4ddde5b8a4",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "cc7d7739-5376-4a63-a8d8-6fe4b9984b0b",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Select",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "58783576-eea7-41c5-bfb6-b97a5f8966aa",
+                    "path": "<Keyboard>/leftCtrl",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Modifier",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "bac0fce0-14c9-44b3-92fa-108b4f695191",
+                    "path": "<Keyboard>/rightCtrl",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Modifier",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "e6c1f68d-f6a9-4c93-8abd-3f7b29c5c2a9",
+                    "path": "<Keyboard>/l",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "DeselectAll",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
         }
-      ],
-      "bindings": [
-        {
-          "name": "",
-          "id": "cc7d7739-5376-4a63-a8d8-6fe4b9984b0b",
-          "path": "<Mouse>/leftButton",
-          "interactions": "",
-          "processors": "",
-          "groups": "",
-          "action": "Select",
-          "isComposite": false,
-          "isPartOfComposite": false
-        },
-        {
-          "name": "",
-          "id": "58783576-eea7-41c5-bfb6-b97a5f8966aa",
-          "path": "<Keyboard>/leftCtrl",
-          "interactions": "",
-          "processors": "",
-          "groups": "",
-          "action": "Modifier",
-          "isComposite": false,
-          "isPartOfComposite": false
-        },
-        {
-          "name": "",
-          "id": "bac0fce0-14c9-44b3-92fa-108b4f695191",
-          "path": "<Keyboard>/rightCtrl",
-          "interactions": "",
-          "processors": "",
-          "groups": "",
-          "action": "Modifier",
-          "isComposite": false,
-          "isPartOfComposite": false
-        },
-        {
-          "name": "",
-          "id": "e6c1f68d-f6a9-4c93-8abd-3f7b29c5c2a9",
-          "path": "<Keyboard>/s",
-          "interactions": "",
-          "processors": "",
-          "groups": "",
-          "action": "DeselectAll",
-          "isComposite": false,
-          "isPartOfComposite": false
-        }
-      ]
-    }
-  ],
-  "controlSchemes": []
+    ],
+    "controlSchemes": []
 }

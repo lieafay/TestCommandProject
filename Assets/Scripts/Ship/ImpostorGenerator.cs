@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// Генерирует текстуру-импостер (биллборд) для корабля/станции.
@@ -19,83 +20,77 @@ public static class ImpostorGenerator
     /// 90° – вид сверху (план).
     /// </param>
     /// <returns>Texture2D с прозрачным фоном, содержащая изображение корабля.</returns>
-    public static Texture2D GenerateImpostorTexture(GameObject ship, int resolution = 256, float pitchAngle = 90f)
+public static Texture2D GenerateImpostorTexture(GameObject ship, int resolution = 256, float pitchAngle = 90f)
+{
+    // 1. Сохраняем исходные слои объекта и всех детей
+    int impostorLayer = LayerMask.NameToLayer("ImpostorCapture");
+    if (impostorLayer < 0)
     {
-        // --- Сохраняем исходное состояние корабля ---
-        // Временное перемещение корабля в центр (0,0,0) и обнуление поворота нужно для
-        // того, чтобы временная камера могла снимать объект без влияния его текущей позиции и вращения.
-        // После рендеринга всё будет восстановлено.
-        bool wasActive = ship.activeSelf;
-        Vector3 originalPos = ship.transform.position;
-        Quaternion originalRot = ship.transform.rotation;
-
-        ship.transform.position = Vector3.zero;
-        ship.transform.rotation = Quaternion.identity;
-        ship.SetActive(true); // убеждаемся, что объект виден камере
-
-        // --- Вычисляем габариты корабля ---
-        // Это необходимо для настройки ортографической камеры, чтобы корабль полностью помещался в кадр.
-        Bounds bounds = CalculateBounds(ship);
-        float maxSize = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
-
-        // Размер камеры выбирается чуть больше половины максимального размера, чтобы оставить отступ по краям.
-        // Умножаем на 0.9, чтобы объект не упирался в границы кадра.
-        float orthoSize = maxSize * 0.9f;
-
-        // --- Создаём временную ортографическую камеру ---
-        // Ортографическая камера гарантирует, что размер объекта на текстуре не зависит от расстояния,
-        // что удобно для получения равномерного масштаба на текстуре.
-        GameObject tempCameraGO = new GameObject("TempImpostorCamera");
-        Camera tempCamera = tempCameraGO.AddComponent<Camera>();
-        tempCamera.orthographic = true;
-        tempCamera.orthographicSize = orthoSize;
-        tempCamera.backgroundColor = new Color(0, 0, 0, 0); // полностью прозрачный фон
-        tempCamera.clearFlags = CameraClearFlags.Color;    // заливаем прозрачным цветом
-        tempCamera.nearClipPlane = 0.1f;
-        tempCamera.farClipPlane = 1000f;
-
-        // --- Позиционируем камеру относительно центра корабля ---
-        // Расстояние выбирается таким, чтобы корабль полностью влезал в ортографическую проекцию.
-        // Ортографическая камера не зависит от расстояния, но мы всё равно задаём его для направления.
-        float distance = maxSize * 1.8f;
-        // Направление: поворачиваем вектор вперёд (0,0,1) на угол pitchAngle вокруг оси X.
-        Vector3 direction = Quaternion.Euler(pitchAngle, 0, 0) * Vector3.forward;
-        tempCamera.transform.position = direction.normalized * distance;
-        // Камера смотрит точно на центр корабля (0,0,0)
-        tempCamera.transform.LookAt(Vector3.zero);
-
-        // --- Создаём RenderTexture и рендерим ---
-        RenderTexture rt = new RenderTexture(resolution, resolution, 24, RenderTextureFormat.ARGB32);
-        rt.antiAliasing = 4; // включить сглаживание для более чёткого изображения
-        tempCamera.targetTexture = rt;
-
-        tempCamera.Render(); // выполняем рендеринг в RenderTexture
-
-        // --- Читаем пиксели из RenderTexture в Texture2D ---
-        RenderTexture.active = rt;
-        Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.ARGB32, false);
-        tex.ReadPixels(new Rect(0, 0, resolution, resolution), 0, 0);
-        tex.Apply(); // применяем изменения (обязательно после ReadPixels)
-
-        // --- Очистка временных ресурсов ---
-        tempCamera.targetTexture = null;
-        RenderTexture.active = null;
-        Object.DestroyImmediate(rt);
-        Object.DestroyImmediate(tempCameraGO);
-
-        // --- Восстанавливаем исходное состояние корабля ---
-        ship.SetActive(wasActive);
-        ship.transform.position = originalPos;
-        ship.transform.rotation = originalRot;
-
-        return tex;
+        Debug.LogError("Слой 'ImpostorCapture' не найден! Добавьте его в Edit → Project Settings → Tags and Layers.");
+        return null;
     }
+
+    var originalLayers = new Dictionary<Transform, int>();
+    foreach (var t in ship.GetComponentsInChildren<Transform>(includeInactive: true))
+    {
+        originalLayers[t] = t.gameObject.layer;
+        t.gameObject.layer = impostorLayer;
+    }
+
+    // 2. Вычисляем мировые габариты (без перемещения)
+    Bounds bounds = CalculateBounds(ship);
+    float maxSize = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+    float orthoSize = maxSize * 0.9f;
+    float distance = maxSize * 1.8f;
+
+    // 3. Создаём временную камеру, которая видит ТОЛЬКО слой ImpostorCapture
+    GameObject tempCameraGO = new GameObject("TempImpostorCamera");
+    Camera tempCamera = tempCameraGO.AddComponent<Camera>();
+    tempCamera.orthographic = true;
+    tempCamera.orthographicSize = orthoSize;
+    tempCamera.backgroundColor = new Color(0, 0, 0, 0);
+    tempCamera.clearFlags = CameraClearFlags.Color;
+    tempCamera.cullingMask = 1 << impostorLayer;      // ← только наш объект
+    tempCamera.nearClipPlane = 0.1f;
+    tempCamera.farClipPlane = 1000f;
+
+    // 4. Позиционируем камеру относительно реального центра объекта
+    Vector3 direction = Quaternion.Euler(pitchAngle, 0, 0) * Vector3.forward;
+    tempCamera.transform.position = bounds.center + direction.normalized * distance;
+    tempCamera.transform.LookAt(bounds.center);
+
+    // 5. Рендерим в текстуру
+    RenderTexture rt = new RenderTexture(resolution, resolution, 24, RenderTextureFormat.ARGB32);
+    rt.antiAliasing = 4;
+    tempCamera.targetTexture = rt;
+    tempCamera.Render();
+
+    RenderTexture.active = rt;
+    Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.ARGB32, false);
+    tex.ReadPixels(new Rect(0, 0, resolution, resolution), 0, 0);
+    tex.Apply();
+
+    // 6. Очищаем временные объекты
+    tempCamera.targetTexture = null;
+    RenderTexture.active = null;
+    Object.DestroyImmediate(rt);
+    Object.DestroyImmediate(tempCameraGO);
+
+    // 7. Восстанавливаем исходные слои
+    foreach (var t in ship.GetComponentsInChildren<Transform>(includeInactive: true))
+    {
+        if (originalLayers.TryGetValue(t, out int originalLayer))
+            t.gameObject.layer = originalLayer;
+    }
+
+    return tex;
+}
 
     /// <summary>
     /// Вычисляет общие габариты объекта и всех его дочерних объектов, имеющих Renderer.
     /// Используется для настройки размера камеры.
     /// </summary>
-    private static Bounds CalculateBounds(GameObject obj)
+   public static Bounds CalculateBounds(GameObject obj)
     {
         Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
         if (renderers.Length == 0)
@@ -111,7 +106,7 @@ public static class ImpostorGenerator
     /// </summary>
     /// <param name="texture">Текстура, к которой добавляется обводка.</param>
     /// <param name="borderWidth">Толщина обводки в пикселях.</param>
-    public static void AddSelectionBorder(Texture2D texture, int borderWidth = 2)
+    public static void AddSelectionBorder(Texture2D texture, int borderWidth = 6)
     {
         if (texture == null) return;
 
@@ -182,7 +177,7 @@ public static class ImpostorGenerator
     public static Texture2D GenerateImpostorTextureWithBorder(GameObject ship, int resolution = 256, float pitchAngle = 90f)
     {
         Texture2D tex = GenerateImpostorTexture(ship, resolution, pitchAngle);
-        AddSelectionBorder(tex);
+        AddSelectionBorder(tex, 6);
         return tex;
     }
 }

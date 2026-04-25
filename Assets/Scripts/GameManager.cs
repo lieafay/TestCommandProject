@@ -59,12 +59,20 @@ public class GameManager : MonoBehaviour
         // Очищаем сцену от всего, что может быть
         ClearAllShips();
 
-        // Создаём станцию в центре
-        ShipData stationData = StationPreset.CreateDefaultStation(Vector3.zero);
-        GameObject station = ShipSpawner.SpawnShip(stationData, foundationMaterial);
-        currentShips.Add(stationData); // сохраняем данные в списке
-
-        // Здесь можно добавить спавн стартовых кораблей, ресурсов и т.д.
+        List<ShipData> startShips = GameSetupLoader.LoadStartShips();
+        if (startShips != null && startShips.Count > 0)
+        {
+            FixStartShipPositions(startShips);
+            foreach (var shipData in startShips)
+            {
+                GameObject ship = ShipSpawner.SpawnShip(shipData, foundationMaterial);
+                currentShips.Add(shipData);
+            }
+        }
+        else
+        {
+            Debug.LogWarning("Не удалось загрузить стартовые корабли из JSON. Сцена будет пустой.");
+        }
     }
 
     /// <summary>
@@ -136,6 +144,89 @@ public class GameManager : MonoBehaviour
             Destroy(ship.gameObject);
         }
         currentShips.Clear();
+    }
+
+    private void FixStartShipPositions(List<ShipData> startShips)
+    {
+        if (startShips == null || startShips.Count == 0)
+            return;
+
+        // Станция всегда фиксируется в центре и должна идти первой
+        startShips[0].position = Vector3.zero;
+        List<Bounds> placedBounds = new List<Bounds> { GetShipBoundsXZ(startShips[0]) };
+
+        for (int index = 1; index < startShips.Count; index++)
+        {
+            ShipData ship = startShips[index];
+            int attempts = 0;
+
+            while (attempts < 1000)
+            {
+                Bounds shipBounds = GetShipBoundsXZ(ship);
+                float shiftX = 0f;
+
+                foreach (Bounds placed in placedBounds)
+                {
+                    if (BoundsOverlapXZ(shipBounds, placed))
+                    {
+                        shiftX = Mathf.Max(shiftX, placed.max.x - shipBounds.min.x + 1.0f);
+                    }
+                }
+
+                if (shiftX <= 0f)
+                    break;
+
+                ship.position += new Vector3(shiftX, 0f, 0f);
+                attempts++;
+            }
+
+            if (attempts >= 1000)
+            {
+                Debug.LogWarning($"Не удалось разместить корабль {ship.shipType} без перекрытия после {attempts} попыток.");
+            }
+
+            placedBounds.Add(GetShipBoundsXZ(ship));
+        }
+    }
+
+    private Bounds GetShipBoundsXZ(ShipData ship)
+    {
+        if (ship == null)
+            return new Bounds();
+
+        if (ship.existingCells == null || ship.existingCells.Count == 0)
+        {
+            return new Bounds(ship.position, new Vector3(ship.cellSize, 1f, ship.cellSize));
+        }
+
+        int minCellX = int.MaxValue;
+        int maxCellX = int.MinValue;
+        int minCellZ = int.MaxValue;
+        int maxCellZ = int.MinValue;
+
+        foreach (var cell in ship.existingCells)
+        {
+            minCellX = Mathf.Min(minCellX, cell.x);
+            maxCellX = Mathf.Max(maxCellX, cell.x);
+            minCellZ = Mathf.Min(minCellZ, cell.y);
+            maxCellZ = Mathf.Max(maxCellZ, cell.y);
+        }
+
+        float halfCell = ship.cellSize * 0.5f;
+        float minX = ship.position.x + minCellX * ship.cellSize - halfCell;
+        float maxX = ship.position.x + maxCellX * ship.cellSize + halfCell;
+        float minZ = ship.position.z + minCellZ * ship.cellSize - halfCell;
+        float maxZ = ship.position.z + maxCellZ * ship.cellSize + halfCell;
+
+        Vector3 center = new Vector3((minX + maxX) * 0.5f, ship.position.y, (minZ + maxZ) * 0.5f);
+        Vector3 size = new Vector3(maxX - minX, 1f, maxZ - minZ);
+        return new Bounds(center, size);
+    }
+
+    private bool BoundsOverlapXZ(Bounds a, Bounds b)
+    {
+        return a.min.x < b.max.x && a.max.x > b.min.x &&
+               a.min.z < b.max.z && a.max.z > b.min.z;
     }
 
     private void LoadShips(List<ShipData> ships)

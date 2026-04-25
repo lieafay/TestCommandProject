@@ -167,9 +167,11 @@ public class ObjectSelector : MonoBehaviour
     private void PerformSingleSelection(Vector2 screenPos)
     {
         Ray ray = mainCamera.ScreenPointToRay(screenPos);
+        Debug.DrawRay(ray.origin, ray.direction * 1000, Color.red, 2f);
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
             RTSActorParent actor = hit.collider.GetComponentInParent<RTSActorParent>();
+            Debug.Log($"Hit: {hit.collider?.gameObject.name}, actor: {actor?.gameObject.name}");
             if (actor != null)
             {
                 bool isModifierPressed = useNewInputSystem ?

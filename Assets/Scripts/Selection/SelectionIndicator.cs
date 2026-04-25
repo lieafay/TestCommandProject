@@ -33,24 +33,24 @@ public class SelectionIndicator : MonoBehaviour
     private void CreateFrame()
     {
         frameRoot = new GameObject("SelectionFrame");
-        frameRoot.transform.SetParent(shipController.modelRoot.transform);
-        frameRoot.transform.localPosition = Vector3.zero;
-        frameRoot.transform.localRotation = Quaternion.identity;
+        // ВАЖНО: открепляем от родителя, чтобы позиция задавалась в мировых координатах без искажений
+        frameRoot.transform.SetParent(null);
+        frameRoot.transform.position = Vector3.zero;
 
         Material lineMaterial = new Material(Shader.Find("Unlit/Color"));
         lineMaterial.color = frameColor;
 
-        // Create 12 lines: 4 top, 4 bottom, 4 vertical
         for (int i = 0; i < 12; i++)
         {
             GameObject lineGO = new GameObject($"Line{i}");
             lineGO.transform.SetParent(frameRoot.transform);
+            lineGO.transform.localPosition = Vector3.zero;
             LineRenderer lr = lineGO.AddComponent<LineRenderer>();
             lr.material = lineMaterial;
             lr.startWidth = lineWidth;
             lr.endWidth = lineWidth;
             lr.positionCount = 2;
-            lr.useWorldSpace = false;
+            lr.useWorldSpace = false;   // координаты относительны frameRoot
             frameLines.Add(lr);
         }
     }
@@ -58,77 +58,66 @@ public class SelectionIndicator : MonoBehaviour
     public void Show(bool show)
     {
         isSelected = show;
-        if (shipController.impostorRoot.activeSelf)
+        if (shipController.impostorRoot != null && shipController.impostorRoot.activeSelf)
         {
-            // For impostor, change sprite
             if (shipController.impostorImage != null)
-            {
                 shipController.impostorImage.sprite = show ? shipController.selectionImpostorSprite : shipController.normalImpostorSprite;
-            }
             frameRoot.SetActive(false);
         }
         else
         {
-            // For 3D model, show/hide frame
             frameRoot.SetActive(show);
             if (show)
-            {
                 UpdateFrameBounds();
-            }
         }
     }
 
     private void UpdateFrameBounds()
     {
-        if (shipController.existingCells.Count == 0) return;
+        if (shipController == null) return;
 
-        // Calculate bounds from existingCells
-        int minX = int.MaxValue, maxX = int.MinValue, minZ = int.MaxValue, maxZ = int.MinValue;
-        foreach (var cell in shipController.existingCells)
+        BoxCollider box = shipController.GetComponent<BoxCollider>();
+        if (box == null)
         {
-            minX = Mathf.Min(minX, cell.x);
-            maxX = Mathf.Max(maxX, cell.x);
-            minZ = Mathf.Min(minZ, cell.y);
-            maxZ = Mathf.Max(maxZ, cell.y);
+            Debug.LogWarning($"SelectionIndicator: BoxCollider not found on {shipController.name}");
+            return;
         }
 
-        float cellSize = shipController.cellSize;
-        float halfThickness = shipController.foundation.thickness / 2f;
-        float height = halfThickness + cellSize; // Temporary, can be improved to max module height
+        Bounds worldBounds = box.bounds;
+        Vector3 center = worldBounds.center;
+        Vector3 extent = worldBounds.extents;
 
-        Vector3 center = new Vector3(
-            (minX + maxX) * cellSize / 2f,
-            0,
-            (minZ + maxZ) * cellSize / 2f
-        );
+        // Устанавливаем позицию рамки в мировой центр коллайдера
+        frameRoot.transform.position = new Vector3(center.x, shipController.transform.position.y, center.z);
 
-        float width = (maxX - minX + 1) * cellSize + frameOffset * 2;
-        float depth = (maxZ - minZ + 1) * cellSize + frameOffset * 2;
+        float w = extent.x;
+        float h = extent.y;
+        float d = extent.z;
 
-        frameRoot.transform.localPosition = center;
+        // Верхняя грань
+        SetLine(0, new Vector3(-w, h, -d), new Vector3(w, h, -d));
+        SetLine(1, new Vector3(w, h, -d), new Vector3(w, h, d));
+        SetLine(2, new Vector3(w, h, d), new Vector3(-w, h, d));
+        SetLine(3, new Vector3(-w, h, d), new Vector3(-w, h, -d));
 
-        // Set line positions
-        // Top square
-        SetLine(0, new Vector3(-width/2, height + frameOffset, -depth/2), new Vector3(width/2, height + frameOffset, -depth/2));
-        SetLine(1, new Vector3(width/2, height + frameOffset, -depth/2), new Vector3(width/2, height + frameOffset, depth/2));
-        SetLine(2, new Vector3(width/2, height + frameOffset, depth/2), new Vector3(-width/2, height + frameOffset, depth/2));
-        SetLine(3, new Vector3(-width/2, height + frameOffset, depth/2), new Vector3(-width/2, height + frameOffset, -depth/2));
+        // Нижняя грань
+        SetLine(4, new Vector3(-w, -h, -d), new Vector3(w, -h, -d));
+        SetLine(5, new Vector3(w, -h, -d), new Vector3(w, -h, d));
+        SetLine(6, new Vector3(w, -h, d), new Vector3(-w, -h, d));
+        SetLine(7, new Vector3(-w, -h, d), new Vector3(-w, -h, -d));
 
-        // Bottom square
-        SetLine(4, new Vector3(-width/2, -halfThickness - frameOffset, -depth/2), new Vector3(width/2, -halfThickness - frameOffset, -depth/2));
-        SetLine(5, new Vector3(width/2, -halfThickness - frameOffset, -depth/2), new Vector3(width/2, -halfThickness - frameOffset, depth/2));
-        SetLine(6, new Vector3(width/2, -halfThickness - frameOffset, depth/2), new Vector3(-width/2, -halfThickness - frameOffset, depth/2));
-        SetLine(7, new Vector3(-width/2, -halfThickness - frameOffset, depth/2), new Vector3(-width/2, -halfThickness - frameOffset, -depth/2));
+        // Вертикальные рёбра
+        SetLine(8,  new Vector3(-w, h, -d), new Vector3(-w, -h, -d));
+        SetLine(9,  new Vector3(w, h, -d), new Vector3(w, -h, -d));
+        SetLine(10, new Vector3(w, h, d), new Vector3(w, -h, d));
+        SetLine(11, new Vector3(-w, h, d), new Vector3(-w, -h, d));
 
-        // Vertical lines
-        SetLine(8, new Vector3(-width/2, height + frameOffset, -depth/2), new Vector3(-width/2, -halfThickness - frameOffset, -depth/2));
-        SetLine(9, new Vector3(width/2, height + frameOffset, -depth/2), new Vector3(width/2, -halfThickness - frameOffset, -depth/2));
-        SetLine(10, new Vector3(width/2, height + frameOffset, depth/2), new Vector3(width/2, -halfThickness - frameOffset, depth/2));
-        SetLine(11, new Vector3(-width/2, height + frameOffset, depth/2), new Vector3(-width/2, -halfThickness - frameOffset, depth/2));
+        Debug.Log($"[FrameUpdate] {shipController.name}: pos={frameRoot.transform.position}, w={w}, h={h}, d={d}");
     }
 
     private void SetLine(int index, Vector3 start, Vector3 end)
     {
+        if (index < 0 || index >= frameLines.Count) return;
         frameLines[index].SetPosition(0, start);
         frameLines[index].SetPosition(1, end);
     }

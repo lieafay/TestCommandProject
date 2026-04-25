@@ -39,6 +39,6 @@ public class LODController : MonoBehaviour
 
         // Включаем/выключаем соответствующие дочерние объекты
         if (modelRoot != null) modelRoot.SetActive(!useImpostor);
-        if (impostorRoot != null) impostorRoot.SetActive(useImpostor);
+        impostorRoot.SetActive(useImpostor);
     }
 }

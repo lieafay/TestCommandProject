@@ -75,61 +75,65 @@ public class ShipController : RTSActorParent
         }
 
         // Add BoxCollider for selection
-        AddSelectionCollider();
         blocks.Clear();
         foreach (var block in data.blocks)
         {
             Vector2Int pos = new Vector2Int(block.x, block.z);
             blocks[pos] = block.type;
         }
+        // Add BoxCollider for selection (теперь blocks уже заполнен)
+        AddSelectionCollider();
 
         GenerateVisualModules();
     }
 
     private void AddSelectionCollider()
     {
-        // Remove old MeshCollider if exists on this object and foundation
-        MeshCollider oldCollider = GetComponent<MeshCollider>();
-        if (oldCollider != null)
-        {
-            DestroyImmediate(oldCollider);
-        }
-
+        // Удаляем старые коллайдеры
+        MeshCollider oldMc = GetComponent<MeshCollider>();
+        if (oldMc != null) DestroyImmediate(oldMc);
         if (foundation != null)
         {
-            MeshCollider foundationCollider = foundation.GetComponent<MeshCollider>();
-            if (foundationCollider != null)
-            {
-                DestroyImmediate(foundationCollider);
-            }
+            MeshCollider fMc = foundation.GetComponent<MeshCollider>();
+            if (fMc != null) DestroyImmediate(fMc);
         }
 
-        // Calculate bounds
-        if (existingCells.Count == 0) return;
-
-        int minX = int.MaxValue, maxX = int.MinValue, minZ = int.MaxValue, maxZ = int.MinValue;
-        foreach (var cell in existingCells)
+        if (foundation == null)
         {
-            minX = Mathf.Min(minX, cell.x);
-            maxX = Mathf.Max(maxX, cell.x);
-            minZ = Mathf.Min(minZ, cell.y);
-            maxZ = Mathf.Max(maxZ, cell.y);
+            Debug.LogError("AddSelectionCollider: foundation is null");
+            return;
         }
 
-        float width = (maxX - minX + 1) * _cellSize;
-        float depth = (maxZ - minZ + 1) * _cellSize;
-        float height = foundation.thickness + _cellSize; // From bottom to top of modules
+        MeshFilter mf = foundation.GetComponent<MeshFilter>();
+        if (mf == null || mf.sharedMesh == null)
+        {
+            Debug.LogError("AddSelectionCollider: foundation MeshFilter or mesh is null");
+            return;
+        }
 
-        Vector3 center = new Vector3(
-            (minX + maxX) * _cellSize / 2f,
-            0,
-            (minZ + maxZ) * _cellSize / 2f
-        );
+        // Границы фундамента в локальных координатах modelRoot
+        Bounds localBounds = mf.sharedMesh.bounds;
 
+        // Учитываем высоту модулей: если есть блоки, они поднимаются над фундаментом на cellSize
+        float extraHeight = 0f;
+        if (blocks.Count > 0)
+            extraHeight = _cellSize;   // каждый модуль добавляет высоту cellSize над фундаментом
+
+        // Расширяем границы вверх на extraHeight
+        localBounds.Expand(new Vector3(0, extraHeight * 0.5f, 0)); // Expand добавляет половину к каждой стороне
+
+        // Переводим в мировые координаты
+        Vector3 worldCenter = foundation.transform.TransformPoint(localBounds.center);
+        Vector3 worldSize = Vector3.Scale(localBounds.size, foundation.transform.lossyScale);
+
+        // Создаём коллайдер на корневом объекте
         BoxCollider collider = gameObject.AddComponent<BoxCollider>();
         collider.isTrigger = true;
-        collider.center = center;
-        collider.size = new Vector3(width, height, depth);
+        collider.center = transform.InverseTransformPoint(worldCenter);
+        collider.size = worldSize;
+        collider.enabled = true;
+
+        Debug.Log($"Collider created for {gameObject.name}: world center={worldCenter}, size={worldSize}");
     }
 
     private void GenerateVisualModules()
@@ -192,6 +196,7 @@ public class ShipController : RTSActorParent
         Canvas canvas = canvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.worldCamera = Camera.main;
+        canvas.sortingOrder = 0; // при необходимости можно управлять
 
         CanvasScaler scaler = canvasGO.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
@@ -202,7 +207,12 @@ public class ShipController : RTSActorParent
         imageGO.transform.localPosition = Vector3.zero;
         imageGO.transform.localRotation = Quaternion.identity;
         impostorRect = imageGO.AddComponent<RectTransform>();
-        impostorRect.sizeDelta = new Vector2(64, 64);
+
+        // Вычисляем реальные мировые размеры корабля для масштабирования спрайта
+        Bounds shipBounds = ImpostorGenerator.CalculateBounds(gameObject);
+        float realSize = Mathf.Max(shipBounds.size.x, shipBounds.size.z);
+        float impostorWorldSize = Mathf.Clamp(realSize * 1.2f, 3f, 20f); // мин 3м, макс 20м
+        impostorRect.sizeDelta = new Vector2(impostorWorldSize, impostorWorldSize);
 
         Image image = imageGO.AddComponent<Image>();
         image.material = new Material(Shader.Find("Sprites/Default"));
@@ -224,34 +234,48 @@ public class ShipController : RTSActorParent
 
         image.sprite = normalImpostorSprite;
 
+        // Force layout rebuild to ensure correct world corners
+        LayoutRebuilder.ForceRebuildLayoutImmediate(impostorRect);
+
         // Add BoxCollider to cover the sprite
         BoxCollider spriteCollider = imageGO.AddComponent<BoxCollider>();
+        spriteCollider.isTrigger = true;
         UpdateSpriteCollider();
 
         canvasGO.AddComponent<Billboard>();
 
         hasImpostor = true;
-        Debug.Log($"Impostor generated for {gameObject.name}");
+        Debug.Log($"[ImpostorPos] {gameObject.name}: impostorRoot.position = {impostorRoot.transform.position}, impostorRect.position = {impostorRect.position}, root.position = {transform.position}");
     }
 
     private void UpdateSpriteCollider()
     {
         if (impostorImage == null || impostorRect == null) return;
 
+        LayoutRebuilder.ForceRebuildLayoutImmediate(impostorRect);
+
         Vector3[] corners = new Vector3[4];
         impostorRect.GetWorldCorners(corners);
 
         Bounds bounds = new Bounds(corners[0], Vector3.zero);
         for (int i = 1; i < 4; i++)
-        {
             bounds.Encapsulate(corners[i]);
-        }
 
         BoxCollider collider = impostorImage.GetComponent<BoxCollider>();
         if (collider != null)
         {
             collider.center = bounds.center - transform.position;
             collider.size = bounds.size;
+            collider.isTrigger = true;
+            collider.enabled = true;
+        }
+    }
+
+    void Update()
+    {
+        if (hasImpostor && impostorRoot != null && impostorRoot.activeSelf)
+        {
+            UpdateImpostorOrientation();
         }
     }
 
@@ -276,11 +300,29 @@ public class ShipController : RTSActorParent
         impostorRect.localRotation = Quaternion.Euler(0, 0, angle);
     }
 
-    void Update()
+
+    public void OnImpostorClicked()
     {
-        if (hasImpostor && impostorRoot != null && impostorRoot.activeSelf)
+        // Определяем, зажат ли модификатор (Ctrl)
+        bool modifierPressed = false;
+        SelectionInput selInput = FindObjectOfType<SelectionInput>();
+        if (selInput != null && selInput.ModifierAction != null)
+            modifierPressed = selInput.ModifierAction.ReadValue<float>() > 0.5f;
+
+        SelectionManager selManager = SelectionManager.Instance;
+        if (selManager == null) return;
+
+        if (modifierPressed)
         {
-            UpdateImpostorOrientation();
+            if (selManager.IsSelected(this))
+                selManager.Deselect(this);
+            else
+                selManager.Select(this);
+        }
+        else
+        {
+            selManager.DeselectAll();
+            selManager.Select(this);
         }
     }
 
@@ -308,11 +350,7 @@ public class ShipController : RTSActorParent
         return data;
     }
 
-    public void UpdateImpostor()
-    {
-        if (hasImpostor)
-            GenerateImpostor();
-    }
+   
 
     public override void Select()
     {
